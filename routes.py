@@ -145,7 +145,3 @@ async def root():
             "GET /results/{job_id}": "Get analysis results"
         }
     }
-
-@router.get("/health")
-async def health_check():
-    return {"status": "healthy", "timestamp": datetime.now().isoformat()}
