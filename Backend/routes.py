@@ -22,8 +22,16 @@ async def upload_document(file: UploadFile = File(...)):
     if not file.filename.endswith((".pdf", ".txt")):
         logger.warning(f"Upload failed: unsupported file type {file.filename}")
         raise HTTPException(status_code=400, detail="Only PDF and TXT files are supported")
+    # Check file size (limit: 5MB)
+    file_size_limit = 5 * 1024 * 1024  # 5MB in bytes
+    if file.size is not None and file.size > file_size_limit:
+        logger.warning(f"Upload failed: file {file.filename} exceeds 5MB size limit.")
+        raise HTTPException(status_code=400, detail="File size exceeds 5MB limit")
     try:
         content = await file.read()
+        if len(content) > file_size_limit:
+            logger.warning(f"Upload failed: file {file.filename} exceeds 5MB size limit (checked after read).")
+            raise HTTPException(status_code=400, detail="File size exceeds 5MB limit")
         if file.filename.endswith('.pdf'):
             text = extract_text_from_pdf(content)
         else:
