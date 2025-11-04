@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Analysis (Gemini)</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', Arial, sans-serif;
+            margin: 0;
+            background: linear-gradient(120deg, #e0e7ff 0%, #f7f7f7 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: #fff;
+            padding: 2.5em 2em 2em 2em;
+            border-radius: 14px;
+            max-width: 520px;
+            margin: 3em auto 2em auto;
+            box-shadow: 0 8px 32px #0002, 0 1.5px 4px #0001;
+            border: 1px solid #e5e7eb;
+        }
+        h1 {
+            text-align: center;
+            font-weight: 600;
+            color: #2d3a5a;
+            margin-bottom: 0.5em;
+        }
+        label {
+            display: block;
+            margin-top: 1.5em;
+            font-weight: 500;
+            color: #374151;
+        }
+        input[type="file"] {
+            margin-top: 0.5em;
+            padding: 0.4em;
+            border: 1px solid #cbd5e1;
+            border-radius: 5px;
+            background: #f9fafb;
+        }
+        button {
+            margin-top: 2em;
+            padding: 0.7em 2.5em;
+            font-size: 1.08em;
+            font-weight: 600;
+            color: #fff;
+            background: linear-gradient(90deg, #6366f1 0%, #2563eb 100%);
+            border: none;
+            border-radius: 6px;
+            box-shadow: 0 2px 8px #6366f133;
+            cursor: pointer;
+            transition: background 0.2s, box-shadow 0.2s;
+        }
+        button:hover {
+            background: linear-gradient(90deg, #4f46e5 0%, #1d4ed8 100%);
+            box-shadow: 0 4px 16px #6366f144;
+        }
+        #status {
+            margin-top: 1.5em;
+            font-size: 1.05em;
+            color: #374151;
+            min-height: 1.5em;
+        }
+        .result {
+            margin-top: 2.5em;
+            background: #f3f4f6;
+            padding: 1.5em 1.2em;
+            border-radius: 10px;
+            box-shadow: 0 1px 4px #0001;
+            border: 1px solid #e5e7eb;
+            max-height: 340px;
+            overflow-y: auto;
+        }
+        .result h3 {
+            margin-top: 0.5em;
+            color: #2563eb;
+            font-size: 1.1em;
+        }
+        .result pre {
+            background: #e0e7ff;
+            padding: 0.7em 1em;
+            border-radius: 6px;
+            font-size: 0.98em;
+            overflow-x: auto;
+        }
+        .error {
+            color: #b91c1c;
+            font-weight: 500;
+        }
+        @media (max-width: 600px) {
+            .container { padding: 1.2em 0.5em; }
+            .result { padding: 1em 0.5em; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Document Analysis <span style="font-size:0.7em;color:#6366f1;">(Gemini)</span></h1>
+        <form id="uploadForm" autocomplete="off">
+            <label for="file">Upload PDF or TXT file:</label>
+            <input type="file" id="file" name="file" accept=".pdf,.txt" required>
+            <button type="submit">Upload & Analyze</button>
+        </form>
+        <div id="status"></div>
+        <div class="result" id="result" style="display:none;"></div>
+    </div>
+    <script>
+        const uploadForm = document.getElementById('uploadForm');
+        const statusDiv = document.getElementById('status');
+        const resultDiv = document.getElementById('result');
+
+        uploadForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            statusDiv.textContent = '';
+            resultDiv.style.display = 'none';
+            resultDiv.innerHTML = '';
+            const fileInput = document.getElementById('file');
+            if (!fileInput.files.length) return;
+            const file = fileInput.files[0];
+            const formData = new FormData();
+            formData.append('file', file);
+            statusDiv.textContent = 'Uploading...';
+            try {
+                // Upload file
+                const uploadRes = await fetch('http://127.0.0.1:8000/upload', {
+                    method: 'POST',
+                    body: formData
+                });
+                const uploadData = await uploadRes.json();
+                if (!uploadRes.ok) throw new Error(uploadData.detail || 'Upload failed');
+                statusDiv.textContent = 'File uploaded. Starting analysis...';
+                // Start analysis
+                const analyzeRes = await fetch('http://127.0.0.1:8000/analyze', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ job_id: uploadData.job_id })
+                });
+                const analyzeData = await analyzeRes.json();
+                if (!analyzeRes.ok) throw new Error(analyzeData.detail || 'Analysis failed');
+                statusDiv.textContent = 'Analyzing... (this may take a few seconds)';
+                // Poll for results
+                let result = null;
+                for (let i = 0; i < 30; i++) { // up to ~30 seconds
+                    await new Promise(r => setTimeout(r, 1000));
+                    const res = await fetch(`http://127.0.0.1:8000/results/${uploadData.job_id}`);
+                    const data = await res.json();
+                    if (data.status === 'completed') {
+                        result = data.results;
+                        break;
+                    } else if (data.status === 'failed') {
+                        throw new Error(data.error || 'Analysis failed');
+                    }
+                }
+                if (!result) throw new Error('Timed out waiting for analysis results.');
+                statusDiv.textContent = 'Analysis complete!';
+                resultDiv.style.display = 'block';
+                resultDiv.innerHTML = `
+                    <h3>Summary</h3>
+                    <p style="margin-bottom:1.2em;line-height:1.6;color:#222a3a;">${result.summary}</p>
+                    <h3>Entities</h3>
+                    <pre>${JSON.stringify(result.entities, null, 2)}</pre>
+                    <h3>Sentiment</h3>
+                    <pre>${JSON.stringify(result.sentiment, null, 2)}</pre>
+                `;
+            } catch (err) {
+                statusDiv.innerHTML = `<span class="error">${err.message}</span>`;
+            }
+        });
+    </script>
+</body>
+</html>

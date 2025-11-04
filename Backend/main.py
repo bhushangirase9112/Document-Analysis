@@ -14,9 +14,9 @@ app = FastAPI(title="Multi-Agent Document Analysis System (Gemini)")
 logger.info("FastAPI app initialized.")
 
 
-os.environ["GRPC_VERBOSITY"] = "ERROR"
-os.environ["GRPC_CPP_MIN_LOG_LEVEL"] = "3"
-os.environ["ABSL_LOG_LEVEL"] = "3"
+# os.environ["GRPC_VERBOSITY"] = "ERROR"
+# os.environ["GRPC_CPP_MIN_LOG_LEVEL"] = "3"
+# os.environ["ABSL_LOG_LEVEL"] = "3"
 
 # CORS (optional, for frontend integration)
 app.add_middleware(
