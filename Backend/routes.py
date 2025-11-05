@@ -7,6 +7,7 @@ import time
 from models import AnalysisRequest
 from utils import extract_text_from_pdf
 from agents import summarizer_agent, entity_extractor_agent, sentiment_analyzer_agent
+from creaw_code import agents_and_run_crew
 
 # Configure logging
 import logging
@@ -88,17 +89,23 @@ async def run_multi_agent_analysis(job_id: str, text: str, document_name: str):
     start_time = time.time()
     try:
         jobs_store[job_id]["status"] = "processing"
+        # results = await asyncio.gather(
+        #     summarizer_agent(text),
+        #     entity_extractor_agent(text),
+        #     sentiment_analyzer_agent(text),
+        #     return_exceptions=True
+        # )
+        
         results = await asyncio.gather(
-            summarizer_agent(text),
-            entity_extractor_agent(text),
-            sentiment_analyzer_agent(text),
-            return_exceptions=True
-        )
-        summary = results[0] if not isinstance(results[0], Exception) else "Summary unavailable due to agent failure"
-        entities = results[1] if not isinstance(results[1], Exception) else {
+            agents_and_run_crew(text),
+            return_exceptions=True)
+        print(results)
+
+        summary = results[0][0]["summary"] if not isinstance(results[0][0]["summary"], Exception) else "Summary unavailable due to agent failure"
+        entities = results[0][1] if not isinstance(results[0][1], Exception) else {
             "people": [], "organizations": [], "dates": [], "locations": []
         }
-        sentiment = results[2] if not isinstance(results[2], Exception) else {
+        sentiment = results[0][2] if not isinstance(results[0][2], Exception) else {
             "tone": "neutral", "confidence": 0.0
         }
         processing_time = time.time() - start_time
@@ -114,12 +121,12 @@ async def run_multi_agent_analysis(job_id: str, text: str, document_name: str):
             "processing_time_seconds": round(processing_time, 2)
         }
         failures = []
-        if isinstance(results[0], Exception):
-            failures.append(f"Summarizer: {str(results[0])}")
-        if isinstance(results[1], Exception):
-            failures.append(f"Entity Extractor: {str(results[1])}")
-        if isinstance(results[2], Exception):
-            failures.append(f"Sentiment Analyzer: {str(results[2])}")
+        if isinstance(summary, Exception):
+            failures.append(f"Summarizer: {str(summary)}")
+        if isinstance(entities, Exception):
+            failures.append(f"Entity Extractor: {str(entities)}")
+        if isinstance(sentiment, Exception):
+            failures.append(f"Sentiment Analyzer: {str(sentiment)}")
         if failures:
             jobs_store[job_id]["agent_failures"] = failures
     except Exception as e:

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Document Analysis (Gemini)</title>
+    <title>Document Analysis</title>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
     <style>
         body {
@@ -16,10 +16,32 @@
             background: #fff;
             padding: 2.5em 2em 2em 2em;
             border-radius: 14px;
-            max-width: 520px;
+            max-width: 900px;
             margin: 3em auto 2em auto;
             box-shadow: 0 8px 32px #0002, 0 1.5px 4px #0001;
             border: 1px solid #e5e7eb;
+        }
+        #uploadForm {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 1.5em;
+            justify-content: space-between;
+        }
+        #uploadForm label {
+            flex: 1 1 180px;
+            margin-top: 0;
+            min-width: 180px;
+        }
+        #uploadForm input[type="file"] {
+            flex: 2 1 320px;
+            min-width: 220px;
+            max-width: 400px;
+        }
+        #uploadForm button {
+            flex: 1 1 180px;
+            min-width: 180px;
+            margin-top: 0;
         }
         h1 {
             text-align: center;
@@ -97,7 +119,7 @@
 </head>
 <body>
     <div class="container">
-        <h1>Document Analysis <span style="font-size:0.7em;color:#6366f1;">(Gemini)</span></h1>
+        <h1>Document Analysis <span style="font-size:0.7em;color:#6366f1;"></span></h1>
         <form id="uploadForm" autocomplete="off">
             <label for="file">Upload PDF or TXT file:</label>
             <input type="file" id="file" name="file" accept=".pdf,.txt" required>
@@ -148,6 +170,7 @@
                     const data = await res.json();
                     if (data.status === 'completed') {
                         result = data.results;
+                        processing_time_seconds = data.processing_time_seconds;
                         break;
                     } else if (data.status === 'failed') {
                         throw new Error(data.error || 'Analysis failed');
@@ -163,6 +186,7 @@
                     <pre>${JSON.stringify(result.entities, null, 2)}</pre>
                     <h3>Sentiment</h3>
                     <pre>${JSON.stringify(result.sentiment, null, 2)}</pre>
+                    <h3 id="processing-time">Processing Time: ${processing_time_seconds} seconds</h3>
                 `;
             } catch (err) {
                 statusDiv.innerHTML = `<span class="error">${err.message}</span>`;
